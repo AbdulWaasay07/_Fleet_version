@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Simulation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f7f9fc;
+            --card-color: #ffffff;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --accent-color: #3b82f6;
+            --success-color: #10b981;
+            --border-color: #e2e8f0;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --gradient-info: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 300px 1fr 340px;
+            gap: 24px;
+        }
+
+        /* Analytics Sidebar */
+        .analytics-column {
+            position: sticky;
+            top: 40px;
+            height: fit-content;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+        }
+
+        #analytics-feed {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        #analytics-feed::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #analytics-feed::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        #analytics-feed::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 0px;
+        }
+
+        .analytics-card {
+            background: var(--card-color);
+            padding: 16px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 16px;
+            animation: fadeIn 0.5s;
+            transition: all 0.3s ease;
+        }
+
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .vehicle-badge {
+            background: #eff6ff;
+            color: #3b82f6;
+            padding: 4px 8px;
+            border-radius: 0px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .vehicle-stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: var(--text-color);
+        }
+
+        .progress-bg {
+            height: 6px;
+            background: #f1f5f9;
+            border-radius: 0px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            transition: width 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Section Title Bars */
+        .section-title-bar {
+            background: var(--card-color);
+            padding: 16px 20px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .section-title-bar::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--gradient-primary);
+        }
+
+        .section-title-bar.accent-success::before {
+            background: var(--gradient-success);
+        }
+
+        .section-title-bar.accent-warning::before {
+            background: var(--gradient-warning);
+        }
+
+        .section-title-bar.accent-info::before {
+            background: var(--gradient-info);
+        }
+
+        .section-title-bar h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title-bar .title-icon {
+            font-size: 1.1rem;
+        }
+
+        .section-title-bar .title-badge {
+            font-size: 0.65rem;
+            background: var(--bg-color);
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 0px;
+            font-weight: 500;
+            margin-left: auto;
+        }
+
+        .section-title-bar .title-badge.live {
+            background: #fef3c7;
+            color: #d97706;
+            animation: pulse-badge 2s infinite;
+        }
+
+        @keyframes pulse-badge {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* Overspeed Alert */
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .alert-item {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 14px 18px;
+            border-radius: 0px;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+            animation: alertSlideIn 0.3s ease-out, alertPulse 1s ease-in-out infinite;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-item.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .alert-item.accident {
+            background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%);
+            box-shadow: 0 4px 20px rgba(185, 28, 28, 0.6);
+            border: 2px solid #fecaca;
+            animation: alertSlideIn 0.3s ease-out, alertPulseCritical 0.5s ease-in-out infinite;
+        }
+
+        @keyframes alertPulseCritical {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 2px;
+        }
+
+        .alert-message {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .alert-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 0px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .alert-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes alertSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes alertPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .section-title-bar .title-badge.alert {
+            background: #fef2f2;
+            color: #dc2626;
+            animation: pulse-badge 1s infinite;
+        }
+
+
+        /* Sidebar Stats */
+        .sidebar {
+            position: sticky;
+            top: 40px;
+            height: fit-content;
+        }
+
+        .status-card {
+            background: var(--card-color);
+            padding: 24px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 0px;
+            background-color: #ef4444;
+            transition: background-color 0.3s;
+        }
+
+        .dot.active {
+            background-color: var(--success-color);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .stat-item {
+            margin-bottom: 16px;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: grid;
+            gap: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            background: var(--card-color);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        button.primary {
+            background: var(--text-color);
+            color: white;
+            border: none;
+        }
+
+        button.primary:hover {
+            opacity: 0.9;
+        }
+
+        /* Timeline Feed */
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 24px;
+        }
+
+        .feed-title {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--border-color);
+            border-radius: 0px;
+        }
+
+        .event-card {
+            background: var(--card-color);
+            padding: 20px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            position: relative;
+            animation: slideIn 0.4s ease-out;
+            transition: transform 0.2s;
+        }
+
+        .vehicle-link {
+            color: var(--accent-color);
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 500;
+        }
+
+        .vehicle-link:hover {
+            opacity: 0.8;
+        }
+
+        .vehicle-link.selected {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 2px 4px;
+            border-radius: 0px;
+            text-decoration: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .event-card:hover {
+            transform: translateX(4px);
+        }
+
+        .event-marker {
+            position: absolute;
+            left: -29px;
+            top: 24px;
+            width: 12px;
+            height: 12px;
+            background: var(--bg-color);
+            border: 2px solid var(--accent-color);
+            border-radius: 0px;
+            z-index: 10;
+        }
+
+        .event-marker.step-1 {
+            border-color: #64748b;
+        }
+
+        .event-marker.step-2 {
+            border-color: #3b82f6;
+        }
+
+        .event-marker.step-3 {
+            border-color: #8b5cf6;
+        }
+
+        .event-marker.step-4 {
+            border-color: #eab308;
+        }
+
+        .event-marker.step-6 {
+            border-color: #10b981;
+        }
+
+        .event-marker.step-4 {
+            border-color: #f59e0b;
+            /* Amber */
+        }
+
+        .time-badge {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .event-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            font-size: 0.875rem;
+        }
+
+        .detail-item strong {
+            display: block;
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 0.75rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-muted);
+        }
+
+        /* Tablet Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 250px 1fr;
+                width: 98%;
+            }
+
+            .analytics-column {
+                display: none;
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 20px;
+            }
+
+            .analytics-column {
+                display: none;
+            }
+
+            .event-details {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* RL Savings Banner - Grayscale */
+        .savings-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+            color: white;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            border-radius: 0px;
+            box-shadow: 0 4px 20px rgba(30, 41, 59, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            max-width: 1600px;
+            width: 100%;
+        }
+
+        .savings-banner .savings-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+
+        .savings-banner .savings-main {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .savings-banner .savings-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .savings-banner .savings-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .savings-banner .savings-stats {
+            display: flex;
+            gap: 32px;
+        }
+
+        .savings-banner .stat-box {
+            text-align: center;
+        }
+
+        .savings-banner .stat-box .value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .savings-banner .stat-box .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .savings-banner {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .savings-banner .savings-stats {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- RL Savings Banner -->
+    <div class="savings-banner">
+        <div>
+            <div class="savings-title">RL Model Optimization Savings</div>
+            <div class="savings-main">
+                <span class="savings-value" id="totalSavings">$0</span>
+                <span class="savings-label">saved today</span>
+            </div>
+        </div>
+        <div class="savings-stats">
+            <div class="stat-box">
+                <div class="value" id="timeSaved">0 min</div>
+                <div class="label">Time Saved</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="fuelSaved">0%</div>
+                <div class="label">Fuel Efficiency</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="routesOptimized">0</div>
+                <div class="label">Routes Optimized</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="co2Reduced">0 kg</div>
+                <div class="label">CO2 Reduced</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <!-- Fleet Control Title Bar -->
+            <div class="section-title-bar accent-info">
+                <h2>
+                    Fleet Control
+                    <span class="title-badge" id="connBadge">Offline</span>
+                </h2>
+            </div>
+
+            <div class="status-card">
+                <div class="status-header">
+                    <div class="status-indicator">
+                        <span id="connDot" class="dot"></span>
+                        <span id="connText">Disconnected</span>
+                    </div>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Total Orders</span>
+                    <span class="stat-value" id="totalOrders">0</span>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Pending Orders</span>
+                    <span class="stat-value" id="pendingOrders" style="color: #f59e0b;">0</span>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Active Vehicles</span>
+                    <span class="stat-value" id="activeVehicles">0</span>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Free Drivers</span>
+                    <span class="stat-value" id="freeDrivers">-</span>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Free Vehicles</span>
+                    <span class="stat-value" id="freeVehicles">-</span>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Last 10 Avg Score</span>
+                    <span class="stat-value" style="color: var(--accent-color);" id="avgScore">-</span>
+                </div>
+            </div>
+
+            <!-- Model Evaluation Title Bar -->
+            <div class="section-title-bar accent-warning">
+                <h2>
+                    Model Evaluation
+                    <span class="title-badge" id="modelBadge">--% acc</span>
+                </h2>
+            </div>
+
+            <div class="status-card">
+                <div class="stat-item">
+                    <span class="stat-label">Model Accuracy</span>
+                    <span class="stat-value" id="modelAccuracy" style="color: #8b5cf6;">--%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Prediction Confidence</span>
+                    <span class="stat-value" id="predConfidence" style="color: #8b5cf6;">--%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Adaptation Rate</span>
+                    <span class="stat-value" id="adaptationRate" style="color: #8b5cf6;">0.00%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Model Version</span>
+                    <span class="stat-value" id="modelVersion" style="font-size: 1rem;">v1.0.0</span>
+                </div>
+            </div>
+
+            <!-- Learning Metrics Title Bar -->
+            <div class="section-title-bar accent-success">
+                <h2>
+                    Learning Metrics
+                    <span class="title-badge" id="learningBadge">0 patterns</span>
+                </h2>
+            </div>
+
+            <div class="status-card">
+                <div class="stat-item">
+                    <span class="stat-label">Episodes Completed</span>
+                    <span class="stat-value" id="episodesCompleted">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Avg Reward (Last 100)</span>
+                    <span class="stat-value" id="avgReward" style="color: var(--success-color);">--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Exploration Rate (ε)</span>
+                    <span class="stat-value" id="explorationRate">--</span>
+                </div>
+            </div>
+
+            <!-- Driver Analysis Title Bar -->
+            <div class="section-title-bar accent-info">
+                <h2>
+                    Driver Analysis
+                    <span class="title-badge" id="driverAlertBadge">0 alerts</span>
+                </h2>
+            </div>
+
+            <div class="status-card">
+                <div class="stat-item">
+                    <span class="stat-label">Avg Safety Score</span>
+                    <span class="stat-value" id="driverSafetyScore" style="color: var(--success-color);">--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Trips Completed</span>
+                    <span class="stat-value" id="tripsCompleted">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Avg Speed</span>
+                    <span class="stat-value" id="avgDriverSpeed">-- km/h</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Speed Violations</span>
+                    <span class="stat-value" id="speedViolations" style="color: #ef4444;">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Harsh Braking</span>
+                    <span class="stat-value" id="harshBraking" style="color: #f59e0b;">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Harsh Accel</span>
+                    <span class="stat-value" id="harshAccel" style="color: #f59e0b;">0</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="primary" onclick="startSim()"
+                    style="background: var(--success-color); border: none;">Start Simulation</button>
+                <button onclick="stopSim()" style="color: #ef4444; border-color: #ef4444;">Stop Simulation</button>
+                <button onclick="clearFeed()">Clear Feed</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Live Event Stream Title Bar -->
+            <div class="section-title-bar">
+                <h2>
+                    Live Event Stream
+                    <span class="title-badge live">Real-time</span>
+                </h2>
+            </div>
+
+            <div class="timeline" id="feed">
+                <div class="empty-state">
+                    Waiting for simulation to start...
+                </div>
+            </div>
+        </div>
+
+
+        <div class="analytics-column">
+            <!-- Live Vehicle Spotlight Title Bar -->
+            <div class="section-title-bar accent-success">
+                <h2>
+                    Vehicle Spotlight
+                    <span class="title-badge" id="spotlightCount">0 tracked</span>
+                </h2>
+            </div>
+
+            <!-- Active Fleet Selection List -->
+            <h3
+                style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Select Active Vehicles
+            </h3>
+            <div id="active-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
+                <!-- Chips will go here -->
+                <span style="color: var(--text-muted); font-size: 0.8em; font-style: italic;">No active
+                    vehicles...</span>
+            </div>
+
+            <div id="analytics-feed">
+                <!-- Analytics cards will appear here -->
+                <!-- Analytics cards will appear here -->
+                <div class="analytics-card" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+                    <div style="font-size: 1.2rem; margin-bottom: 10px; font-weight: bold;">[SELECT VEHICLE]</div>
+                    Click a Vehicle ID inside the Event Stream to track it here.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overspeed Alert Container -->
+    <div class="alert-container" id="alertContainer"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api';
+        const WS_URL = 'ws://localhost:8000/api/ws';
+
+        // Overspeed Configuration
+        const SPEED_LIMIT = 100; // km/h
+        const ALERT_COOLDOWN = 10000; // 10 seconds between alerts for same vehicle
+        let alertedVehicles = new Map(); // vehicleId -> lastAlertTime
+        let speedViolationCount = 0;
+        let tripsCompletedCount = 0;
+        let allSpeedReadings = [];
+
+        // Model Learning Simulation
+        let patternsLearned = 0;
+        let modelAccuracy = 85.0;
+        let modelConfidence = 78.0;
+        let episodeCount = 0;
+        let explorationRate = 1.0;
+        let lastPatternTime = Date.now();
+
+        // RL Savings Tracking
+        let totalSavings = 0;
+        let timeSaved = 0;
+        let fuelEfficiency = 12;
+        let routesOptimized = 0;
+        let co2Reduced = 0;
+
+        let ws = null;
+        let orderCount = 0;
+
+        let scores = [];
+        let selectedVehicles = new Set();
+
+        // RL Savings now received from backend via WebSocket
+
+        function connect() {
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                document.getElementById('connDot').classList.add('active');
+                document.getElementById('connText').innerText = "Connected";
+                document.getElementById('connBadge').innerText = "Online";
+                document.getElementById('connBadge').classList.add('live');
+                console.log("WebSocket Connected");
+                startSim();
+            };
+
+            ws.onclose = () => {
+                document.getElementById('connDot').classList.remove('active');
+                document.getElementById('connText').innerText = "Disconnected";
+                document.getElementById('connBadge').innerText = "Offline";
+                document.getElementById('connBadge').classList.remove('live');
+                setTimeout(connect, 3000); // Reconnect
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // Update resource stats if available
+                if (data.resource_stats) {
+                    document.getElementById('freeDrivers').innerText = data.resource_stats.free_drivers + '/' + data.resource_stats.total_drivers;
+                    document.getElementById('freeVehicles').innerText = data.resource_stats.free_vehicles + '/' + data.resource_stats.total_vehicles;
+                }
+
+                // Handle Log Events
+                if (data.type === 'log') {
+                    addEvent(data);
+
+                    // Update stats if it's a new order
+                    if (data.title === "Order Queued") {
+                        orderCount++;
+                        document.getElementById('totalOrders').innerText = orderCount;
+                    }
+
+                    // Collect scores
+                    if (data.title === "Resource Allocated" && data.details.Score) {
+                        scores.push(parseFloat(data.details.Score));
+                        if (scores.length > 10) scores.shift();
+                        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                        document.getElementById('avgScore').innerText = avg.toFixed(3);
+                    }
+
+                    // Track completed trips (Step 6 is completion)
+                    if (data.step === 6 || data.title === "Order Complete" || data.title === "Dispatch Success") {
+                        tripsCompletedCount++;
+                        document.getElementById('tripsCompleted').innerText = tripsCompletedCount;
+                    }
+                }
+
+                if (data.type === 'alert') {
+                    if (data.alert_type === 'overspeed') {
+                        showOverspeedAlert(data.vehicle_id, data.speed, data.driver_id);
+                    } else if (data.alert_type === 'accident') {
+                        showAccidentAlert(data.vehicle_id, data.driver_id, data.severity, data.location);
+                    }
+                }
+
+                // Handle Vehicle Analytics & Active List
+                if (data.type === 'vehicle_analytics') {
+                    updateAnalytics(data.data);
+                    if (data.active_ids) {
+                        updateActiveList(data.active_ids);
+                    }
+                }
+
+                // Handle State Updates (Implicitly check for vehicle data)
+                if (data.vehicles) {
+                    document.getElementById('activeVehicles').innerText = data.vehicles.length;
+                    // Also update analytics cards from this live stream
+                    updateAnalytics(data.vehicles);
+                }
+
+                if (data.pending_orders_count !== undefined) {
+                    document.getElementById('pendingOrders').innerText = data.pending_orders_count;
+                }
+
+                // Handle RL Savings from backend
+                if (data.type === 'rl_savings') {
+                    document.getElementById('totalSavings').innerText = '$' + data.total_savings;
+                    document.getElementById('timeSaved').innerText = Math.floor(data.time_saved) + ' min';
+                    document.getElementById('fuelSaved').innerText = data.fuel_efficiency + '%';
+                    document.getElementById('routesOptimized').innerText = data.routes_optimized;
+                    document.getElementById('co2Reduced').innerText = data.co2_reduced + ' kg';
+                }
+
+                // Handle Model Metrics from backend
+                if (data.type === 'model_metrics') {
+                    document.getElementById('modelAccuracy').innerText = data.accuracy.toFixed(1) + '%';
+                    document.getElementById('modelBadge').innerText = Math.round(data.accuracy) + '% acc';
+                    document.getElementById('predConfidence').innerText = data.confidence.toFixed(1) + '%';
+                    document.getElementById('episodesCompleted').innerText = data.episodes;
+                    document.getElementById('avgReward').innerText = data.avg_reward.toFixed(3);
+                    document.getElementById('explorationRate').innerText = data.exploration_rate.toFixed(4);
+                    document.getElementById('adaptationRate').innerText = data.adaptation_rate.toFixed(2) + '%';
+
+                    const pBadge = document.getElementById('learningBadge');
+                    const oldPatterns = parseInt(pBadge.innerText);
+                    if (data.patterns > oldPatterns) {
+                        pBadge.innerText = data.patterns + ' patterns';
+                        pBadge.classList.add('live');
+                        setTimeout(() => pBadge.classList.remove('live'), 3000);
+                    } else {
+                        pBadge.innerText = data.patterns + ' patterns';
+                    }
+                }
+            };
+
+        }
+
+        function toggleVehicle(vId) {
+            if (selectedVehicles.has(vId)) {
+                selectedVehicles.delete(vId);
+            } else {
+                selectedVehicles.add(vId);
+            }
+
+            // Update spotlight count badge
+            const count = selectedVehicles.size;
+            document.getElementById('spotlightCount').innerText = count + ' tracked';
+
+            // Send to backend
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "watch_vehicles",
+                    ids: Array.from(selectedVehicles)
+                }));
+            }
+
+            // Rerender feed to update highlights (simple brute force for now)
+            // Ideally we'd just toggle classes, but for MVP this ensures consistency
+            // Actually, let's just update styles dynamically if we can, or just wait for new events?
+            // Let's just update all link classes
+            document.querySelectorAll('.vehicle-link').forEach(el => {
+                if (selectedVehicles.has(el.innerText)) el.classList.add('selected');
+                else el.classList.remove('selected');
+            });
+        }
+
+        function addEvent(data) {
+            const feed = document.getElementById('feed');
+
+            // Remove empty state if present
+            if (feed.querySelector('.empty-state')) {
+                feed.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.className = 'event-card';
+
+            const time = new Date(data.timestamp).toLocaleTimeString([], { hour12: false });
+            let stepClass = data.step ? `step-${data.step}` : '';
+
+            let detailsHtml = '';
+            if (data.details) {
+                for (const [key, value] of Object.entries(data.details)) {
+                    // Check if value looks like a vehicle ID (simple heuristic or exact match from context)
+                    // Vehicle IDs are v_[number] or typically 2nd arg in "Vehicle: ..."
+                    // Let's make any value starting with "v_" clickable
+                    let displayValue = value;
+                    if (typeof value === 'string' && value.startsWith('v_')) {
+                        const isSel = selectedVehicles.has(value) ? 'selected' : '';
+                        displayValue = `<span class="vehicle-link ${isSel}" onclick="toggleVehicle('${value}')">${value}</span>`;
+                    }
+
+                    detailsHtml += `
+                    <div class="detail-item">
+                        <strong>${key}</strong>
+                        <span>${displayValue}</span>
+                    </div>
+                `;
+                }
+            }
+
+            div.innerHTML = `
+            <div class="event-marker ${stepClass}"></div>
+            <span class="time-badge">${time}</span>
+            <div class="event-title">
+                ${data.title}
+                ${data.step ? `<span style="font-size:0.75rem; color:#94a3b8">Step ${data.step}/6</span>` : ''}
+            </div>
+            <div class="event-details">
+                ${detailsHtml}
+            </div>
+        `;
+
+            feed.insertBefore(div, feed.firstChild);
+
+            // Keep feed length manageable
+            if (feed.children.length > 50) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+
+        // Overspeed Alert Functions
+        function showOverspeedAlert(vehicleId, speed, driverId) {
+            const now = Date.now();
+            const lastAlert = alertedVehicles.get(vehicleId);
+
+            // Check cooldown
+            if (lastAlert && (now - lastAlert) < ALERT_COOLDOWN) {
+                return;
+            }
+
+            alertedVehicles.set(vehicleId, now);
+            speedViolationCount++;
+            document.getElementById('speedViolations').innerText = speedViolationCount;
+
+            // Update driver alert badge
+            const badge = document.getElementById('driverAlertBadge');
+            badge.innerText = speedViolationCount + ' alerts';
+            badge.classList.add('alert');
+
+            const container = document.getElementById('alertContainer');
+            const alertId = 'alert-' + Date.now();
+
+            const alertDiv = document.createElement('div');
+            alertDiv.id = alertId;
+            alertDiv.className = 'alert-item';
+            alertDiv.innerHTML = `
+                <div class="alert-icon">!</div>
+                <div class="alert-content">
+                    <div class="alert-title">OVERSPEED ALERT</div>
+                    <div class="alert-message">${vehicleId} @ ${speed.toFixed(1)} km/h${driverId ? ' (Driver: ' + driverId + ')' : ''}</div>
+                </div>
+                <button class="alert-close" onclick="dismissAlert('${alertId}')">x</button>
+            `;
+
+            container.appendChild(alertDiv);
+
+            // Auto dismiss after 5 seconds
+            setTimeout(() => dismissAlert(alertId), 5000);
+        }
+
+        function showAccidentAlert(vehicleId, driverId, severity, location) {
+            const container = document.getElementById('alertContainer');
+            const alertId = 'alert-accident-' + Date.now();
+
+            const alertDiv = document.createElement('div');
+            alertDiv.id = alertId;
+            alertDiv.className = 'alert-item accident';
+            alertDiv.innerHTML = `
+                <div class="alert-icon">[ALERT]</div>
+                <div class="alert-content">
+                    <div class="alert-title">CRITICAL: ACCIDENT DETECTED</div>
+                    <div class="alert-message">
+                        Vehicle: ${vehicleId}<br>
+                        Driver: ${driverId || 'Unknown'}<br>
+                        Severity: <strong>${severity}</strong>
+                    </div>
+                </div>
+                <button class="alert-close" onclick="dismissAlert('${alertId}')">x</button>
+            `;
+
+            container.prepend(alertDiv);
+
+            // Increment alerts badge
+            const badge = document.getElementById('driverAlertBadge');
+            const count = parseInt(badge.innerText) || 0;
+            badge.innerText = (count + 1) + ' alerts';
+            badge.classList.add('alert');
+
+            // Accidents don't auto-dismiss to ensure visibility
+        }
+
+        function dismissAlert(alertId) {
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                alert.style.animation = 'alertSlideIn 0.3s ease-out reverse';
+                setTimeout(() => {
+                    alert.remove();
+                    // Update badge if 0
+                    const container = document.getElementById('alertContainer');
+                    if (container.children.length === 0) {
+                        const badge = document.getElementById('driverAlertBadge');
+                        badge.innerText = '0 alerts';
+                        badge.classList.remove('alert');
+                    }
+                }, 300);
+            }
+        }
+
+        // Model Learning is now handled by the backend
+
+        function updateDriverAnalytics(vehicles) {
+            if (!vehicles || vehicles.length === 0) return;
+
+            let totalHarshBraking = 0;
+            let totalHarshAccel = 0;
+
+            // Collect readings
+            vehicles.forEach(v => {
+                if (v.speed !== undefined) {
+                    allSpeedReadings.push(v.speed);
+                    if (allSpeedReadings.length > 200) allSpeedReadings.shift();
+
+                    // Check for overspeed handled by backend via specific 'alert' message
+                }
+
+                // Aggregate behavior from backend counts
+                if (v.harsh_braking_count !== undefined) totalHarshBraking += v.harsh_braking_count;
+                if (v.harsh_accel_count !== undefined) totalHarshAccel += v.harsh_accel_count;
+            });
+
+            // Update UI for behavior
+            document.getElementById('harshBraking').innerText = totalHarshBraking;
+            document.getElementById('harshAccel').innerText = totalHarshAccel;
+
+            // Update avg speed
+            if (allSpeedReadings.length > 0) {
+                const avgSpeed = allSpeedReadings.reduce((a, b) => a + b, 0) / allSpeedReadings.length;
+                document.getElementById('avgDriverSpeed').innerText = avgSpeed.toFixed(1) + ' km/h';
+            }
+
+            // Calculate safety score based on violations and behavior
+            // Base 100 - (speed violations * 3) - (harsh braking * 1) - (harsh accel * 0.5)
+            const safetyScore = Math.max(0, 100 - (speedViolationCount * 3) - (totalHarshBraking * 0.5) - (totalHarshAccel * 0.2));
+            document.getElementById('driverSafetyScore').innerText = safetyScore.toFixed(0);
+
+            // Update safety score color based on value
+            const safetyEl = document.getElementById('driverSafetyScore');
+            if (safetyScore >= 80) {
+                safetyEl.style.color = 'var(--success-color)';
+            } else if (safetyScore >= 50) {
+                safetyEl.style.color = '#f59e0b';
+            } else {
+                safetyEl.style.color = '#ef4444';
+            }
+        }
+
+        function updateAnalytics(vehicles) {
+            const container = document.getElementById('analytics-feed');
+            if (!container) return;
+
+            // Update driver analytics
+            updateDriverAnalytics(vehicles);
+
+            // Scenario 0: No active vehicles globally
+            if (vehicles.length === 0) {
+                if (selectedVehicles.size === 0) {
+                    // Default Hint
+                    if (!document.getElementById('empty-select-hint')) {
+                        container.innerHTML = `
+                        <div id="empty-select-hint" class="analytics-card" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+                            <div style="font-size: 1.2rem; margin-bottom: 10px; font-weight: bold;">[SELECT VEHICLE]</div>
+                            Click a Vehicle ID inside the Event Stream to track it here.
+                        </div>`;
+                    }
+                } else {
+                    // Selected but fleet empty
+                    if (!document.getElementById('empty-idle-hint')) {
+                        container.innerHTML = `
+                        <div id="empty-idle-hint" class="analytics-card" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+                            Selected vehicles are currently idle or offline.
+                        </div>`;
+                    }
+                }
+                return;
+            }
+
+            // Scenario 1: User has NO selection -> Show Hint "Click to track"
+            if (selectedVehicles.size === 0) {
+                if (!document.getElementById('empty-select-hint')) {
+                    container.innerHTML = `
+                        <div id="empty-select-hint" class="analytics-card" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+                            <div style="font-size: 1.2rem; margin-bottom: 10px; font-weight: bold;">[SELECT VEHICLE]</div>
+                            Click a Vehicle ID inside the Event Stream to track it here.
+                        </div>`;
+                }
+                // Ensure no stray cards remain (if user deseping last one)
+                Array.from(container.children).forEach(child => {
+                    if (child.id.startsWith('card-')) container.removeChild(child);
+                });
+                // Ensure no idle hint
+                const idleHint = document.getElementById('empty-idle-hint');
+                if (idleHint) idleHint.remove();
+
+                return;
+            }
+
+            // Scenario 2: User HAS selection. Filter vehicles.
+            const monitoredVehicles = vehicles.filter(v => selectedVehicles.has(v.id));
+
+            // Remove SELECT hint if present
+            const selectHint = document.getElementById('empty-select-hint');
+            if (selectHint) selectHint.remove();
+
+            // Check if monitored vehicles are active
+            if (monitoredVehicles.length === 0) {
+                // Selected vehicles are inactive/offline
+                if (!document.getElementById('empty-idle-hint')) {
+                    // We can append or clear. Let's keep it clean.
+                    // But we must remove existing cards first.
+                    Array.from(container.children).forEach(child => {
+                        if (child.id.startsWith('card-')) container.removeChild(child);
+                    });
+
+                    const hint = document.createElement('div');
+                    hint.id = 'empty-idle-hint';
+                    hint.className = 'analytics-card';
+                    hint.style.textAlign = 'center';
+                    hint.style.color = 'var(--text-muted)';
+                    hint.style.padding = '40px 0';
+                    hint.innerHTML = 'Selected vehicles are currently idle or offline.';
+                    container.appendChild(hint);
+                }
+                return;
+            }
+
+            // Use monitoredVehicles for updates
+            const currentIds = new Set(vehicles.map(v => v.id)); // All active IDs for checking status
+
+            // Remove IDLE hint if present
+            const idleHint = document.getElementById('empty-idle-hint');
+            if (idleHint) idleHint.remove();
+
+            monitoredVehicles.forEach(v => {
+                let card = document.getElementById(`card-${v.id}`);
+                const batt = v.battery_level !== undefined ? v.battery_level : (v.battery || 0);
+                const prog = v.progress !== undefined ? v.progress : 0;
+
+                // Color for battery based on level
+                let battColor = '#10b981';
+                if (batt < 30) battColor = '#ef4444';
+                else if (batt < 60) battColor = '#eab308';
+
+                const speedPct = v.speed > 120 ? 100 : (v.speed / 120) * 100;
+
+                if (card) {
+                    // Update existing
+                    card.querySelector('.v-status').innerText = v.status;
+                    card.querySelector('.v-status').style = v.status === 'MOVING' ? 'background:#ecfdf5; color:#059669;' : '';
+                    card.querySelector('.v-speed').innerText = v.speed.toFixed(1) + ' km/h';
+                    card.querySelector('.v-speed-bar').style.width = speedPct + '%';
+                    card.querySelector('.v-batt').innerText = batt.toFixed(0) + '%';
+                    card.querySelector('.v-batt-bar').style.width = batt + '%';
+                    card.querySelector('.v-batt-bar').style.backgroundColor = battColor;
+                    card.querySelector('.v-prog').innerText = prog.toFixed(1) + '%';
+                    card.querySelector('.v-prog-bar').style.width = prog + '%';
+                    card.querySelector('.v-avg-speed').innerText = (v.avg_speed || 0).toFixed(1) + ' km/h';
+                    card.querySelector('.v-stops').innerText = v.stop_count || 0;
+                } else {
+                    // Create New
+                    card = document.createElement('div');
+                    card.id = `card-${v.id}`;
+                    card.className = 'analytics-card';
+
+                    // Consistent naming: Use sim ID as primary, show type and real IDs as secondary
+                    const displayName = v.id; // e.g., "v_V001"
+                    const typeInfo = v.vehicle_type || 'Vehicle';
+                    const driverInfo = v.real_driver_id ? `Driver: ${v.real_driver_id}` : '';
+                    const vehicleInfo = v.real_vehicle_id ? `Fleet ID: ${v.real_vehicle_id}` : '';
+
+                    card.innerHTML = `
+                        <div class="analytics-header">
+                            <span style="font-weight:600; font-size:1.1rem;">${displayName}</span>
+                            <span class="vehicle-badge v-status" style="${v.status === 'MOVING' ? 'background:#ecfdf5; color:#059669;' : ''}">${v.status}</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 12px;">
+                            <span style="background:#eff6ff; color:#3b82f6; padding:2px 6px; border-radius:0px; margin-right:6px;">${typeInfo}</span>
+                            ${driverInfo} ${vehicleInfo ? '• ' + vehicleInfo : ''}
+                        </div>
+                        
+                        <div class="vehicle-stat-row">
+                            <span>Speed</span>
+                            <span class="v-speed" style="font-weight:600">${v.speed.toFixed(1)} km/h</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div class="progress-fill v-speed-bar" style="width: ${speedPct}%; background: #3b82f6;"></div>
+                        </div>
+
+                        <div class="vehicle-stat-row">
+                            <span>Battery</span>
+                            <span class="v-batt" style="font-weight:600">${batt.toFixed(0)}%</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div class="progress-fill v-batt-bar" style="width: ${batt}%; background: ${battColor};"></div>
+                        </div>
+
+                        <div class="vehicle-stat-row">
+                            <span>Trip Progress</span>
+                            <span class="v-prog" style="font-weight:600">${prog.toFixed(1)}%</span>
+                        </div>
+                        <div class="progress-bg" style="margin-bottom:12px;">
+                            <div class="progress-fill v-prog-bar" style="width: ${prog}%; background: #8b5cf6;"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                            <div>
+                                <div style="color: var(--text-muted); font-size: 0.7rem;">AVG SPEED</div>
+                                <div class="v-avg-speed" style="font-weight:600">${(v.avg_speed || 0).toFixed(1)} km/h</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: var(--text-muted); font-size: 0.7rem;">TOTAL STOPS</div>
+                                <div class="v-stops" style="font-weight:600">${v.stop_count || 0}</div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                }
+            });
+
+            // Remove cards if:
+            // 1. Vehicle is no longer in selectedVehicles (User deselected)
+            // 2. Vehicle is no longer in currentIds (Vehicle went offline/idle)
+            Array.from(container.children).forEach(child => {
+                if (child.id.startsWith('card-')) {
+                    const id = child.id.replace('card-', '');
+                    if (!selectedVehicles.has(id) || !currentIds.has(id)) {
+                        container.removeChild(child);
+                    }
+                }
+            });
+        }
+
+        function updateActiveList(ids) {
+            const list = document.getElementById('active-list');
+            if (!list) return;
+
+            if (ids.length === 0) {
+                list.innerHTML = '<span style="color: var(--text-muted); font-size: 0.8em; font-style: italic;">No active vehicles...</span>';
+                return;
+            }
+
+            // Re-render list (simple approach for now, usually IDs don't change THAT fast to cause issues, but diffing is better. 
+            // For MVP, simple re-render is fine usually, but lets try to be smart to avoid losing click states if any native stuff existed)
+            // But we have our own state `selectedVehicles`.
+
+            // To prevent massive flickering, we can check if content changed significantly or just re-render. 
+            // Given 1s update rate, re-render is acceptable if efficient.
+
+            // Actually, let's just clear and rebuild to keep logic simple and ensure sort order.
+            // Sort IDs for better UX
+            ids.sort((a, b) => {
+                // Extracts numbers from v_1, v_10
+                const numA = parseInt(a.replace('v_', '')) || 0;
+                const numB = parseInt(b.replace('v_', '')) || 0;
+                return numA - numB;
+            });
+
+            list.innerHTML = '';
+
+            ids.forEach(id => {
+                const chip = document.createElement('div');
+                const isSelected = selectedVehicles.has(id);
+
+                chip.innerText = id;
+                chip.style.cssText = `
+                    padding: 4px 10px;
+                    border-radius: 0px;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    border: 1px solid ${isSelected ? 'var(--accent-color)' : 'var(--border-color)'};
+                    background: ${isSelected ? 'var(--accent-color)' : 'white'};
+                    color: ${isSelected ? 'white' : 'var(--text-color)'};
+                `;
+
+                chip.onclick = () => toggleVehicle(id); // Re-use existing toggle
+
+                list.appendChild(chip);
+            });
+        }
+
+
+        async function startSim() {
+            try {
+                await fetch(`${API_URL}/simulate/start-orders`, { method: 'POST' });
+            } catch (e) { console.error(e); }
+        }
+
+        async function stopSim() {
+            try {
+                await fetch(`${API_URL}/simulate/stop-orders`, { method: 'POST' });
+            } catch (e) { console.error(e); }
+        }
+
+        function clearFeed() {
+            document.getElementById('feed').innerHTML = '<div class="empty-state">Waiting for simulation to start...</div>';
+            orderCount = 0;
+            document.getElementById('totalOrders').innerText = '0';
+        }
+
+        // Connect immediately
+        connect();
+    </script>
+</body>
+
+</html>
